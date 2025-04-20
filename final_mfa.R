@@ -10,8 +10,7 @@ library(janitor)
 library(tibble)
 library(ggplot2)
 library(ggrepel)
-
-
+library(patchwork) 
 # File path
 volume_a <- "/Users/clarezureich/Documents/Applied Social Data Science/Dimensionality Reduction/final_project/SP554_Volume_A_QB_clean.xlsx"
 volume_b <- "/Users/clarezureich/Documents/Applied Social Data Science/Dimensionality Reduction/final_project/SP554_Volume_B_QB_clean.xlsx"
@@ -243,13 +242,16 @@ fviz_mfa_var(mfa_res,
              axes      = c(1, 2),
              repel     = TRUE,
              col.var   = "contrib") 
-
+dim1_country <- "Dimension 1: Attitude Toward AI (Favorable vs. Unfavorable)"
+dim2_country <- "Dimension 2: Digital Engagement and Institutional Use \n (High informational access/awareness vs low transparency/engagement"
 # Same for cos²:
-fviz_mfa_var(mfa_res,
-             choice    = "group",
-             axes      = c(1, 2),
-             repel     = TRUE,
-             col.var   = "cos2")
+mfa_var_plot <- fviz_mfa_var(mfa_res,
+                             choice    = "group",
+                             axes      = c(1, 2),
+                             repel     = TRUE,
+                             col.var   = "cos2") +
+  labs(x = dim1_country, y = dim2_country)
+ggsave("mfa_var_country_axes.png", plot = mfa_var_plot, width = 8, height = 6, dpi = 300)
 
 #Country contribution
 fviz_mfa_ind(mfa_res,
@@ -278,7 +280,7 @@ centroids <- coord_df %>%
   summarize(Dim1 = mean(Dim.1), Dim2 = mean(Dim.2))
 
 #Ellipses by region with centroids 
-fviz_mfa_ind(mfa_res,
+ellipses <- fviz_mfa_ind(mfa_res,
              habillage = country_region,  # factor of region
              addEllipses = TRUE,
              repel = TRUE) +
@@ -287,15 +289,15 @@ fviz_mfa_ind(mfa_res,
              shape = 8, size = 4, stroke = 1.5, inherit.aes = FALSE) +
   geom_text(data = centroids,
             aes(x = Dim1, y = Dim2, label = Region, color = Region),
-            fontface = "bold", vjust = -1, inherit.aes = FALSE)
+            fontface = "bold", vjust = -1, inherit.aes = FALSE)+
+  labs(x = dim1_country, y = dim2_country)
+ggsave("ellipses.png", plot = ellipses, width = 8, height = 6, dpi = 300)
+
 
 
 ###Dimensions 3 and 4 Analysis###
 fviz_mfa_ind(mfa_res, axes = c(3, 4))
 dimdesc(mfa_res, axes = 3:4, proba = 0.05)
-dimdesc(mfa_demo_res, axes = 3:4, proba = 0.05)
-
-
 
 
 ###Repeat process above on Volume B###
@@ -361,11 +363,20 @@ fviz_mfa_var(mfa_demo_res,
              repel     = TRUE,
              col.var   = "contrib")
 
-fviz_mfa_var(mfa_demo_res,
+# Updated dimension labels for demographics
+dim1_demo <- "Dimension 1: Confidence vs. Skepticism Toward AI"
+dim2_demo <- "Dimension 2: Awareness vs Transparency"
+cos_demo <- fviz_mfa_var(mfa_demo_res,
              choice    = "group",
              axes      = c(1, 2),
              repel     = TRUE,
-             col.var   = "cos2")
+             col.var   = "cos2")+
+  labs(x = dim1_demo, y = dim2_demo)
+# Save to PNG
+ggsave("demo_cos.png", plot = cos_demo, width = 8, height = 6, dpi = 300)
+
+
+
 #Demographic contribution
 fviz_mfa_ind(mfa_demo_res,
              repel = TRUE,
@@ -500,7 +511,7 @@ coords_demo <- as.data.frame(mfa_demo_res$ind$coord) %>%
 coords_demo$group <- rownames(coords_demo)
 
 # Extract categorical predictors
-coords_demo$predictor <- demo_predictors
+demo_predictors <- coords_demo$predictor
 
 
 # Means (centroids) per demographic group
@@ -516,15 +527,20 @@ top_headers <- group_centroids %>%
   slice_max(order_by = dist_from_origin, n = 5)  # adjust `n` if you want more or fewer
 
 # Plot centroids of the most important headers
-ggplot(top_headers, aes(x = Dim.1, y = Dim.2, label = header)) +
+headers <- ggplot(top_headers, aes(x = Dim.1, y = Dim.2, label = header)) +
   geom_point(color = "#FC4E07", size = 4) +
   geom_text_repel(size = 4.5, fontface = "bold") +
   theme_minimal() +
   labs(
     title = "Most Influential Demographic Categories",
     x = "MFA Dimension 1",
-    y = "MFA Dimension 2"
-  )
+    y = "MFA Dimension 2",
+    axis.title.x = element_text(size = 30),
+    axis.title.y = element_text(size = 30)
+  ) + labs(x = dim1_demo, y = dim2_demo)
+# Save to PNG
+ggsave("headers.png", plot = headers, width = 8, height = 6, dpi = 300)
+
 
 # For each of the top 5 headers, find the 2 most extreme subheaders
 extreme_coords <- coords_demo %>%
@@ -569,7 +585,7 @@ top_coords <- coords_demo %>%
   slice_max(order_by = dist_from_origin, n = 25)
 
 # Plot those top 25
-ggplot(top_coords, aes(x = Dim.1, y = Dim.2, label = subheader, color = header)) +
+top25 <- ggplot(top_coords, aes(x = Dim.1, y = Dim.2, label = subheader, color = header)) +
   geom_point(size = 3) +
   geom_text_repel(size = 3.5, max.overlaps = 100) +
   theme_minimal() +
@@ -578,7 +594,10 @@ ggplot(top_coords, aes(x = Dim.1, y = Dim.2, label = subheader, color = header))
     x = "MFA Dimension 1",
     y = "MFA Dimension 2",
     color = "Demographic Group"
-  )
+  )+ labs(x = dim1_demo, y = dim2_demo)
+# Save to PNG
+ggsave("top25.png", plot = top25, width = 8, height = 6, dpi = 300)
+
 #Dimension Descriptions 
 dimdesc(mfa_demo_res, axes = 1:2, proba = 0.05)
 
@@ -640,7 +659,9 @@ axis_descr_demo$Dim.2$quanti
 
 # Hierarchical clustering on principal components - countries 
 hcpc_res <- HCPC(mfa_res, consol = TRUE, graph = FALSE)
-fviz_cluster(hcpc_res, repel = TRUE)
+cluster <- fviz_cluster(hcpc_res, repel = TRUE) +
+  labs(x = dim1_country, y = dim2_country)
+ggsave("country_cluster.png", plot = cluster, width = 8, height = 6, dpi = 300)
 # Euclidean distance on the first two MFA dimensions
 d <- dist(mfa_res$ind$coord[, 1:2])
 h <- hclust(d, method = "ward.D2")
